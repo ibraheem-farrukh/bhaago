@@ -2,6 +2,9 @@
 **/*.md
 !/README.md
 
+# VSCode settings
+.vscode/
+
 # Logs
 logs
 *.log
