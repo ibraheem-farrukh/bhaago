@@ -77,9 +77,9 @@ export default function Map() {
             <Popup>Custom marker</Popup>
           </Marker>
         ))}
-        {markers.length > 1 && (
+        {markers.length > 0 && (
           <Polyline 
-            positions={markers.map(m => m.position)} 
+            positions={[position, ...markers.map(m => m.position)]} 
             color="#FFB600" 
             weight={3}
           />
