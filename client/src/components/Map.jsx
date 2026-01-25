@@ -105,7 +105,7 @@ export default function Map() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'center' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', alignItems: 'center' }}>
       <div style={{ display: 'flex', gap: '12px' }}>
         <button
           onClick={() => setIsPlacingMarkers(!isPlacingMarkers)}
@@ -137,7 +137,7 @@ export default function Map() {
           Undo (Ctrl+Z)
         </button>
       </div>
-      <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
+      <div style={{ display: 'flex', gap: '20px', alignItems: 'center', justifyContent: 'center' }}>
         <MapContainer
           center={position}
           zoom={17}
