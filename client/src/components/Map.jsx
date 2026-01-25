@@ -40,14 +40,13 @@ export default function Map() {
 
   useEffect(() => {
     const fetchRoute = async () => {
-      if (markers.length === 0) {
+      if (markers.length < 2) {
         setRouteCoordinates([])
         setTotalDistance(0)
         return
       }
 
-      const allPoints = [position, ...markers.map(m => m.position)]
-      const coordinates = allPoints.map(p => `${p[1]},${p[0]}`).join(';')
+      const coordinates = markers.map(m => `${m.position[1]},${m.position[0]}`).join(';')
       
       try {
         const response = await fetch(
@@ -62,13 +61,13 @@ export default function Map() {
         }
       } catch (error) {
         console.error('Error fetching route:', error)
-        setRouteCoordinates(allPoints)
+        setRouteCoordinates(markers.map(m => m.position))
         setTotalDistance(0)
       }
     }
 
     fetchRoute()
-  }, [markers, position])
+  }, [markers])
 
   const handleAddMarker = (position) => {
     setMarkers([...markers, { id: Date.now(), position }])
@@ -148,9 +147,6 @@ export default function Map() {
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-        <Marker position={position}>
-          <Popup>You are here</Popup>
-        </Marker>
         {markers.map((marker) => (
           <Marker 
             key={marker.id} 
