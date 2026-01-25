@@ -18,6 +18,7 @@ export default function Map() {
   const [isPlacingMarkers, setIsPlacingMarkers] = useState(false)
   const [markers, setMarkers] = useState([])
   const [routeCoordinates, setRouteCoordinates] = useState([])
+  const [totalDistance, setTotalDistance] = useState(0)
 
   useEffect(() => {
     if (navigator.geolocation) {
@@ -41,6 +42,7 @@ export default function Map() {
     const fetchRoute = async () => {
       if (markers.length === 0) {
         setRouteCoordinates([])
+        setTotalDistance(0)
         return
       }
 
@@ -56,10 +58,12 @@ export default function Map() {
         if (data.routes && data.routes[0]) {
           const coords = data.routes[0].geometry.coordinates.map(coord => [coord[1], coord[0]])
           setRouteCoordinates(coords)
+          setTotalDistance(data.routes[0].distance)
         }
       } catch (error) {
         console.error('Error fetching route:', error)
         setRouteCoordinates(allPoints)
+        setTotalDistance(0)
       }
     }
 
@@ -134,11 +138,12 @@ export default function Map() {
           Undo (Ctrl+Z)
         </button>
       </div>
-      <MapContainer
-        center={position}
-        zoom={17}
-        style={{ width: '800px', height: '600px', borderRadius: '8px', cursor: isPlacingMarkers ? 'crosshair' : 'grab' }}
-      >
+      <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
+        <MapContainer
+          center={position}
+          zoom={17}
+          style={{ width: '800px', height: '600px', borderRadius: '8px', cursor: isPlacingMarkers ? 'crosshair' : 'grab' }}
+        >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -174,6 +179,22 @@ export default function Map() {
         )}
         <MapClickHandler isPlacingMarkers={isPlacingMarkers} onAddMarker={handleAddMarker} />
       </MapContainer>
+      <div style={{
+        width: '200px',
+        padding: '20px',
+        backgroundColor: '#fff',
+        borderRadius: '8px',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+      }}>
+        <h3 style={{ margin: '0 0 12px 0', color: '#323232', fontSize: '1.2rem' }}>Route Info</h3>
+        <div style={{ color: '#323232' }}>
+          <strong>Total Distance:</strong>
+          <div style={{ fontSize: '1.5rem', color: '#FFB600', marginTop: '8px' }}>
+            {totalDistance > 0 ? `${(totalDistance / 1000).toFixed(2)} km` : '0 km'}
+          </div>
+        </div>
+      </div>
+    </div>
     </div>
   )
 }
