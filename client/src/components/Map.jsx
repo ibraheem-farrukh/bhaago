@@ -17,6 +17,7 @@ export default function Map() {
   const [position, setPosition] = useState(null)
   const [isPlacingMarkers, setIsPlacingMarkers] = useState(false)
   const [markers, setMarkers] = useState([])
+  const [routeCoordinates, setRouteCoordinates] = useState([])
 
   useEffect(() => {
     if (navigator.geolocation) {
@@ -35,6 +36,35 @@ export default function Map() {
       setPosition([51.505, -0.09])
     }
   }, [])
+
+  useEffect(() => {
+    const fetchRoute = async () => {
+      if (markers.length === 0) {
+        setRouteCoordinates([])
+        return
+      }
+
+      const allPoints = [position, ...markers.map(m => m.position)]
+      const coordinates = allPoints.map(p => `${p[1]},${p[0]}`).join(';')
+      
+      try {
+        const response = await fetch(
+          `https://router.project-osrm.org/route/v1/foot/${coordinates}?overview=full&geometries=geojson`
+        )
+        const data = await response.json()
+        
+        if (data.routes && data.routes[0]) {
+          const coords = data.routes[0].geometry.coordinates.map(coord => [coord[1], coord[0]])
+          setRouteCoordinates(coords)
+        }
+      } catch (error) {
+        console.error('Error fetching route:', error)
+        setRouteCoordinates(allPoints)
+      }
+    }
+
+    fetchRoute()
+  }, [markers, position])
 
   const handleAddMarker = (position) => {
     setMarkers([...markers, { id: Date.now(), position }])
@@ -77,9 +107,9 @@ export default function Map() {
             <Popup>Custom marker</Popup>
           </Marker>
         ))}
-        {markers.length > 0 && (
+        {routeCoordinates.length > 0 && (
           <Polyline 
-            positions={[position, ...markers.map(m => m.position)]} 
+            positions={routeCoordinates} 
             color="#FFB600" 
             weight={3}
           />
