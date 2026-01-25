@@ -70,26 +70,70 @@ export default function Map() {
     setMarkers([...markers, { id: Date.now(), position }])
   }
 
+  const handleRemoveMarker = (markerId) => {
+    setMarkers(markers.filter(m => m.id !== markerId))
+  }
+
+  const handleUndo = () => {
+    if (markers.length > 0) {
+      setMarkers(markers.slice(0, -1))
+    }
+  }
+
+  const handleUpdateMarkerPosition = (markerId, newPosition) => {
+    setMarkers(markers.map(m => 
+      m.id === markerId ? { ...m, position: newPosition } : m
+    ))
+  }
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.ctrlKey && e.key === 'z') {
+        e.preventDefault()
+        handleUndo()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [markers])
+
   if (!position) {
     return <div style={{ color: '#323232' }}>Loading map...</div>
   }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'center' }}>
-      <button
-        onClick={() => setIsPlacingMarkers(!isPlacingMarkers)}
-        style={{
-          padding: '10px 20px',
-          backgroundColor: isPlacingMarkers ? '#FFB600' : '#323232',
-          color: isPlacingMarkers ? '#323232' : '#fff',
-          border: 'none',
-          borderRadius: '8px',
-          cursor: 'pointer',
-          fontWeight: 600,
-        }}
-      >
-        {isPlacingMarkers ? 'Stop Placing Markers' : 'Start Placing Markers'}
-      </button>
+      <div style={{ display: 'flex', gap: '12px' }}>
+        <button
+          onClick={() => setIsPlacingMarkers(!isPlacingMarkers)}
+          style={{
+            padding: '10px 20px',
+            backgroundColor: isPlacingMarkers ? '#FFB600' : '#323232',
+            color: isPlacingMarkers ? '#323232' : '#fff',
+            border: 'none',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            fontWeight: 600,
+          }}
+        >
+          {isPlacingMarkers ? 'Stop Placing Markers' : 'Start Placing Markers'}
+        </button>
+        <button
+          onClick={handleUndo}
+          disabled={markers.length === 0}
+          style={{
+            padding: '10px 20px',
+            backgroundColor: markers.length === 0 ? '#ccc' : '#323232',
+            color: '#fff',
+            border: 'none',
+            borderRadius: '8px',
+            cursor: markers.length === 0 ? 'not-allowed' : 'pointer',
+            fontWeight: 600,
+          }}
+        >
+          Undo (Ctrl+Z)
+        </button>
+      </div>
       <MapContainer
         center={position}
         zoom={17}
@@ -103,8 +147,22 @@ export default function Map() {
           <Popup>You are here</Popup>
         </Marker>
         {markers.map((marker) => (
-          <Marker key={marker.id} position={marker.position}>
-            <Popup>Custom marker</Popup>
+          <Marker 
+            key={marker.id} 
+            position={marker.position}
+            draggable={true}
+            eventHandlers={{
+              contextmenu: (e) => {
+                e.originalEvent.preventDefault()
+                handleRemoveMarker(marker.id)
+              },
+              dragend: (e) => {
+                const newPos = e.target.getLatLng()
+                handleUpdateMarkerPosition(marker.id, [newPos.lat, newPos.lng])
+              },
+            }}
+          >
+            <Popup>Custom marker (Right-click to remove, drag to move)</Popup>
           </Marker>
         ))}
         {routeCoordinates.length > 0 && (
