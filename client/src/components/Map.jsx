@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet'
+import { MapContainer, TileLayer, Marker, Popup, useMapEvents, Polyline } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 
 function MapClickHandler({ isPlacingMarkers, onAddMarker }) {
@@ -77,6 +77,13 @@ export default function Map() {
             <Popup>Custom marker</Popup>
           </Marker>
         ))}
+        {markers.length > 1 && (
+          <Polyline 
+            positions={markers.map(m => m.position)} 
+            color="#FFB600" 
+            weight={3}
+          />
+        )}
         <MapClickHandler isPlacingMarkers={isPlacingMarkers} onAddMarker={handleAddMarker} />
       </MapContainer>
     </div>
