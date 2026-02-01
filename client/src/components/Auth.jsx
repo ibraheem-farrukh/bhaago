@@ -1,7 +1,78 @@
 import { useState } from 'react'
 
-export default function Auth() {
+export default function Auth({ onAuthSuccess }) {
   const [isLogin, setIsLogin] = useState(true)
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    password: ''
+  })
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  const handleChange = (e) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value
+    })
+    setError('') // Clear error when user types
+  }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setError('')
+    setLoading(true)
+
+    try {
+      const endpoint = isLogin ? '/api/auth/login' : '/api/auth/signup'
+      const payload = isLogin 
+        ? { email: formData.email, password: formData.password }
+        : formData
+
+      const response = await fetch(`http://localhost:3000${endpoint}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Authentication failed')
+      }
+
+      // Store token in localStorage
+      localStorage.setItem('token', data.token)
+      localStorage.setItem('user', JSON.stringify({
+        id: data._id,
+        name: data.name,
+        email: data.email
+      }))
+
+      // On successful auth, call parent callback with user data
+      setFormData({ name: '', email: '', password: '' })
+      if (onAuthSuccess) onAuthSuccess({
+        id: data._id,
+        name: data.name,
+        email: data.email,
+        token: data.token
+      })
+      
+    } catch (err) {
+      console.error('Auth error:', err)
+      setError(err.message || 'An error occurred')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const toggleMode = () => {
+    setIsLogin(!isLogin)
+    setError('')
+    setFormData({ name: '', email: '', password: '' })
+  }
 
   return (
     <div style={{
@@ -22,7 +93,20 @@ export default function Auth() {
           {isLogin ? 'Login' : 'Sign Up'}
         </h1>
         
-        <form onSubmit={(e) => e.preventDefault()}>
+        {error && (
+          <div style={{
+            padding: '12px',
+            marginBottom: '16px',
+            backgroundColor: '#fee',
+            color: '#c33',
+            borderRadius: '6px',
+            fontSize: '0.9rem'
+          }}>
+            {error}
+          </div>
+        )}
+        
+        <form onSubmit={handleSubmit}>
           {!isLogin && (
             <div style={{ marginBottom: '16px' }}>
               <label style={{ display: 'block', marginBottom: '6px', color: '#323232' }}>
@@ -30,12 +114,17 @@ export default function Auth() {
               </label>
               <input
                 type="text"
+                name="name"
+                value={formData.name}
+                onChange={handleChange}
+                required={!isLogin}
                 style={{
                   width: '100%',
                   padding: '10px',
                   borderRadius: '6px',
                   border: '1px solid #ddd',
-                  fontSize: '1rem'
+                  fontSize: '1rem',
+                  boxSizing: 'border-box'
                 }}
               />
             </div>
@@ -47,12 +136,17 @@ export default function Auth() {
             </label>
             <input
               type="email"
+              name="email"
+              value={formData.email}
+              onChange={handleChange}
+              required
               style={{
                 width: '100%',
                 padding: '10px',
                 borderRadius: '6px',
                 border: '1px solid #ddd',
-                fontSize: '1rem'
+                fontSize: '1rem',
+                boxSizing: 'border-box'
               }}
             />
           </div>
@@ -63,43 +157,51 @@ export default function Auth() {
             </label>
             <input
               type="password"
+              name="password"
+              value={formData.password}
+              onChange={handleChange}
+              required
+              minLength={6}
               style={{
                 width: '100%',
                 padding: '10px',
                 borderRadius: '6px',
                 border: '1px solid #ddd',
-                fontSize: '1rem'
+                fontSize: '1rem',
+                boxSizing: 'border-box'
               }}
             />
           </div>
           
           <button
             type="submit"
+            disabled={loading}
             style={{
               width: '100%',
               padding: '12px',
-              backgroundColor: '#FFB600',
+              backgroundColor: loading ? '#ccc' : '#FFB600',
               color: '#323232',
               border: 'none',
               borderRadius: '8px',
               fontSize: '1rem',
               fontWeight: 600,
-              cursor: 'pointer',
+              cursor: loading ? 'not-allowed' : 'pointer',
               marginBottom: '16px'
             }}
           >
-            {isLogin ? 'Login' : 'Sign Up'}
+            {loading ? 'Processing...' : (isLogin ? 'Login' : 'Sign Up')}
           </button>
           
           <div style={{ textAlign: 'center' }}>
             <button
               type="button"
-              onClick={() => setIsLogin(!isLogin)}
+              onClick={toggleMode}
+              disabled={loading}
               style={{
                 background: 'none',
                 border: 'none',
                 color: '#FFB600',
-                cursor: 'pointer',
+                cursor: loading ? 'not-allowed' : 'pointer',
                 textDecoration: 'underline'
               }}
             >

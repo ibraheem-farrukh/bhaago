@@ -1,15 +1,33 @@
+require('dotenv').config();
 const express = require('express');
+const connectDB = require('./db');
+const authRoutes = require('./routes/auth');
+
 const app = express();
-const port = 3000;
+const PORT = process.env.PORT || 3000;
+
+// Connect to MongoDB
+connectDB();
 
 const cors = require('cors');
 const corsOptions = {origin: 'http://localhost:5173'};
+
 app.use(cors(corsOptions));
+app.use(express.json()); 
 
 app.get('/', (req, res) => {
-  res.send('Hello, World!');
+    res.send('Bhaago API is running...');
 });
 
-app.listen(port, () => {
-  console.log(`Server is running on http://localhost:${port}`);
+// Auth routes
+app.use('/api/auth', authRoutes);
+
+app.post('/api/save-route', (req, res) => {
+    console.log("Data received from client:", req.body);
+    
+    res.json({ message: 'Data received successfully', receivedData: req.body });
+});
+
+app.listen(PORT, () => {
+    console.log(`Server running on http://localhost:${PORT}`);
 });
