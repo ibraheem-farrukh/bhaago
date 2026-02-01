@@ -6,7 +6,7 @@ const { protect } = require('../middleware/auth');
 // Create a new route
 router.post('/', protect, async (req, res) => {
   try {
-    const { name, coordinates, distance, duration, photos, tags } = req.body;
+    const { name, coordinates, distance, duration, photos, tags, waypoints } = req.body;
 
     if (!coordinates || !Array.isArray(coordinates) || coordinates.length < 2) {
       return res.status(400).json({ message: 'At least two coordinates are required' });
@@ -15,6 +15,9 @@ router.post('/', protect, async (req, res) => {
     // Convert incoming coords [lat,lng] to GeoJSON [lng,lat]
     const geoCoords = coordinates.map(c => [c[1], c[0]]);
 
+    // Waypoints expected as array of [lat, lng] pairs from client
+    const wp = Array.isArray(waypoints) ? waypoints : [];
+
     const route = await Route.create({
       user: req.user._id,
       name: name || `Route ${new Date().toISOString()}`,
@@ -22,7 +25,8 @@ router.post('/', protect, async (req, res) => {
       distance,
       duration,
       photos: photos || [],
-      tags: tags || []
+      tags: tags || [],
+      waypoints: wp
     });
 
     res.status(201).json(route);

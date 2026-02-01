@@ -22,6 +22,9 @@ export default function Map() {
   const [saveStatus, setSaveStatus] = useState('')
   const [showSaveModal, setShowSaveModal] = useState(false)
   const [saveName, setSaveName] = useState('')
+  const [savedRoutes, setSavedRoutes] = useState([])
+  const [loadingSaved, setLoadingSaved] = useState(false)
+  const [showSavedList, setShowSavedList] = useState(false)
 
   useEffect(() => {
     if (navigator.geolocation) {
@@ -125,6 +128,47 @@ export default function Map() {
           {isPlacingMarkers ? 'Stop Placing Markers' : 'Start Placing Markers'}
         </button>
         <button
+          onClick={async () => {
+            // Toggle saved routes panel; if opening, fetch routes
+            const next = !showSavedList
+            setShowSavedList(next)
+            setSaveStatus('')
+            if (next) {
+              setLoadingSaved(true)
+              const token = localStorage.getItem('token')
+              if (!token) {
+                setSaveStatus('You must be logged in to view saved routes')
+                setLoadingSaved(false)
+                return
+              }
+              try {
+                const res = await fetch('http://localhost:3000/api/routes', {
+                  headers: { Authorization: `Bearer ${token}` }
+                })
+                const data = await res.json()
+                if (!res.ok) throw new Error(data.message || 'Failed to load routes')
+                setSavedRoutes(data)
+              } catch (err) {
+                console.error('Load saved routes error:', err)
+                setSaveStatus(err.message || 'Error loading saved routes')
+              } finally {
+                setLoadingSaved(false)
+              }
+            }
+          }}
+          style={{
+            padding: '10px 20px',
+            backgroundColor: showSavedList ? '#FFB600' : '#323232',
+            color: showSavedList ? '#323232' : '#fff',
+            border: 'none',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            fontWeight: 600,
+          }}
+        >
+          {showSavedList ? 'Hide My Routes' : 'My Routes'}
+        </button>
+        <button
           onClick={handleUndo}
           disabled={markers.length === 0}
           style={{
@@ -223,6 +267,49 @@ export default function Map() {
           <div style={{ marginTop: 12, color: saveStatus.includes('success') ? 'green' : '#c33' }}>{saveStatus}</div>
         )}
       </div>
+      {/* Saved routes list */}
+      {showSavedList && (
+        <div style={{
+          width: '280px',
+          maxHeight: '400px',
+          overflowY: 'auto',
+          padding: '12px',
+          backgroundColor: '#fff',
+          borderRadius: '8px',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+        }}>
+          <h3 style={{ marginTop: 0, color: '#323232', fontSize: '1.1rem' }}>My Saved Routes</h3>
+          {loadingSaved ? (
+            <div style={{ color: '#666' }}>Loading...</div>
+          ) : savedRoutes.length === 0 ? (
+            <div style={{ color: '#666' }}>No saved routes</div>
+          ) : (
+            savedRoutes.map(route => (
+              <div key={route._id} style={{ padding: '8px 0', borderBottom: '1px solid #f0f0f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#323232' }}>
+                <div style={{ cursor: 'pointer' }} onClick={() => {
+                  // Load route geometry onto map
+                  if (route.geometry && route.geometry.coordinates) {
+                    const coords = route.geometry.coordinates.map(c => [c[1], c[0]])
+                    setRouteCoordinates(coords)
+                    // Use stored user waypoints for markers when available
+                    if (route.waypoints && Array.isArray(route.waypoints) && route.waypoints.length > 0) {
+                      setMarkers(route.waypoints.map((p, i) => ({ id: Date.now() + i, position: p })))
+                    } else {
+                      // Fallback: sample the geometry (every 10th point) for markers
+                      setMarkers(coords.filter((_, i) => i % 10 === 0).map((p, i) => ({ id: Date.now() + i, position: p })))
+                    }
+                    setSaveStatus('')
+                    setShowSavedList(false)
+                  }
+                }}>{route.name || 'Unnamed route'}</div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <div style={{ color: '#666666', fontSize: '0.9rem' }}>{route.distance ? `${(route.distance/1000).toFixed(2)} km` : ''}</div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
       {/* Save modal */}
       {showSaveModal && (
         <div style={{
@@ -255,7 +342,7 @@ export default function Map() {
                 const token = localStorage.getItem('token')
                 if (!token) { setSaveStatus('You must be logged in to save routes'); return }
 
-                const payload = { name: saveName, coordinates: routeCoordinates, distance: totalDistance }
+                const payload = { name: saveName, coordinates: routeCoordinates, distance: totalDistance, waypoints: markers.map(m => m.position) }
                 try {
                   const res = await fetch('http://localhost:3000/api/routes', {
                     method: 'POST',

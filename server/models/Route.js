@@ -7,6 +7,8 @@ const RouteSchema = new mongoose.Schema({
     type: { type: String, enum: ['LineString'], required: true },
     coordinates: { type: [[Number]], required: true } // [[lng, lat], ...]
   },
+  // Waypoints are the user-placed marker positions in [lat, lng] format
+  waypoints: { type: [[Number]], default: [] },
   distance: { type: Number },
   duration: { type: Number },
   photos: [String],
