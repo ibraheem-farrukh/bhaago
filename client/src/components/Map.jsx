@@ -146,7 +146,10 @@ export default function Map() {
                   headers: { Authorization: `Bearer ${token}` }
                 })
                 const data = await res.json()
-                if (!res.ok) throw new Error(data.message || 'Failed to load routes')
+                if (!res.ok) {
+                  const errMsg = data.message || 'Failed to load routes'
+                  throw new Error(data.error ? `${errMsg}: ${data.error}` : errMsg)
+                }
                 setSavedRoutes(data)
               } catch (err) {
                 console.error('Load saved routes error:', err)
@@ -302,8 +305,44 @@ export default function Map() {
                     setShowSavedList(false)
                   }
                 }}>{route.name || 'Unnamed route'}</div>
-                <div style={{ display: 'flex', gap: 8 }}>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                   <div style={{ color: '#666666', fontSize: '0.9rem' }}>{route.distance ? `${(route.distance/1000).toFixed(2)} km` : ''}</div>
+                  <button
+                    onClick={async (e) => {
+                      e.stopPropagation()
+                      const confirmDelete = window.confirm(`Delete route "${route.name || 'Unnamed route'}"?`)
+                      if (!confirmDelete) return
+                      setSaveStatus('')
+                      const token = localStorage.getItem('token')
+                      if (!token) { setSaveStatus('You must be logged in to delete routes'); return }
+                      try {
+                        const res = await fetch(`http://localhost:3000/api/routes/${route._id}`, {
+                          method: 'DELETE',
+                          headers: { Authorization: `Bearer ${token}` }
+                        })
+                        const data = await res.json()
+                        if (!res.ok) {
+                          const errMsg = data.message || 'Delete failed'
+                          throw new Error(data.error ? `${errMsg}: ${data.error}` : errMsg)
+                        }
+                        // remove from local list
+                        setSavedRoutes(savedRoutes.filter(r => r._id !== route._id))
+                        setSaveStatus('Route deleted')
+                      } catch (err) {
+                        console.error('Delete route error:', err)
+                        setSaveStatus(err.message || 'Error deleting route')
+                      }
+                    }}
+                    style={{
+                      padding: '6px 10px',
+                      borderRadius: 6,
+                      border: 'none',
+                      background: '#ff4d4f',
+                      color: '#fff',
+                      cursor: 'pointer',
+                      fontSize: '0.85rem'
+                    }}
+                  >Delete</button>
                 </div>
               </div>
             ))
@@ -353,9 +392,12 @@ export default function Map() {
                     body: JSON.stringify(payload)
                   })
                   const data = await res.json()
-                  if (!res.ok) throw new Error(data.message || 'Save failed')
-                  setSaveStatus('Route saved successfully')
-                  setShowSaveModal(false)
+                    if (!res.ok) {
+                      const errMsg = data.message || 'Save failed'
+                      throw new Error(data.error ? `${errMsg}: ${data.error}` : errMsg)
+                    }
+                    setSaveStatus('Route saved successfully')
+                    setShowSaveModal(false)
                 } catch (err) {
                   console.error('Save route error:', err)
                   setSaveStatus(err.message || 'Error saving route')

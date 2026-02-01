@@ -66,7 +66,8 @@ router.delete('/:id', protect, async (req, res) => {
     const route = await Route.findById(req.params.id);
     if (!route) return res.status(404).json({ message: 'Route not found' });
     if (route.user.toString() !== req.user._id.toString()) return res.status(403).json({ message: 'Forbidden' });
-    await route.remove();
+    // use deleteOne() on the document (remove() may not be available in this Mongoose version)
+    await route.deleteOne();
     res.json({ message: 'Route deleted' });
   } catch (error) {
     console.error('Delete route error:', error);
