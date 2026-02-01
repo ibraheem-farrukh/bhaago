@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import Map from './components/Map'
 import Auth from './components/Auth'
+import SavedRoutesPanel from './components/SavedRoutesPanel'
 
 function App() {
   const [page, setPage] = useState('map')
@@ -33,6 +34,7 @@ function App() {
     setUser(null)
     setPage('auth')
   }
+  const [showSaved, setShowSaved] = useState(false)
 
   if (page === 'auth') {
     return (
@@ -92,14 +94,18 @@ function App() {
       <div style={{ position: 'absolute', top: 20, right: 20, zIndex: 1000 }}>
         {user ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{
-              padding: '8px 12px',
-              background: '#fff',
-              borderRadius: '20px',
-              boxShadow: '0 2px 6px rgba(0,0,0,0.08)',
-              color: '#323232',
-              fontWeight: 600
-            }}>
+            <div
+              onClick={() => setShowSaved(true)}
+              style={{
+                padding: '8px 12px',
+                background: '#fff',
+                borderRadius: '20px',
+                boxShadow: '0 2px 6px rgba(0,0,0,0.08)',
+                color: '#323232',
+                fontWeight: 600,
+                cursor: 'pointer'
+              }}
+            >
               {user.name}
             </div>
             <button
@@ -126,6 +132,7 @@ function App() {
             color: '#666'
           }}>Guest</div>
         )}
+        {showSaved && <SavedRoutesPanel onClose={() => setShowSaved(false)} />}
       </div>
 
       <Map />
