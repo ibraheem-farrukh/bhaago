@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const connectDB = require('./db');
 const authRoutes = require('./routes/auth');
+const routesRoutes = require('./routes/routes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -22,6 +23,10 @@ app.get('/', (req, res) => {
 // Auth routes
 app.use('/api/auth', authRoutes);
 
+// Routes (saved routes)
+app.use('/api/routes', routesRoutes);
+
+// legacy/save-route (kept for backward compatibility)
 app.post('/api/save-route', (req, res) => {
     console.log("Data received from client:", req.body);
     

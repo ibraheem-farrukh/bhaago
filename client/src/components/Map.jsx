@@ -19,6 +19,7 @@ export default function Map() {
   const [markers, setMarkers] = useState([])
   const [routeCoordinates, setRouteCoordinates] = useState([])
   const [totalDistance, setTotalDistance] = useState(0)
+  const [saveStatus, setSaveStatus] = useState('')
 
   useEffect(() => {
     if (navigator.geolocation) {
@@ -136,6 +137,60 @@ export default function Map() {
         >
           Undo (Ctrl+Z)
         </button>
+        <button
+          onClick={async () => {
+            setSaveStatus('')
+            if (routeCoordinates.length < 2) {
+              setSaveStatus('Add at least two markers to save a route')
+              return
+            }
+
+            const token = localStorage.getItem('token')
+            if (!token) {
+              setSaveStatus('You must be logged in to save routes')
+              return
+            }
+
+            const name = window.prompt('Route name', `Run ${new Date().toLocaleString()}`)
+            if (name === null) return // cancelled
+
+            const payload = {
+              name,
+              coordinates: routeCoordinates, // [lat,lng] pairs
+              distance: totalDistance
+            }
+
+            try {
+              const res = await fetch('http://localhost:3000/api/routes', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(payload)
+              })
+
+              const data = await res.json()
+              if (!res.ok) throw new Error(data.message || 'Save failed')
+
+              setSaveStatus('Route saved successfully')
+            } catch (err) {
+              console.error('Save route error:', err)
+              setSaveStatus(err.message || 'Error saving route')
+            }
+          }}
+          style={{
+            padding: '10px 20px',
+            backgroundColor: '#FFB600',
+            color: '#323232',
+            border: 'none',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            fontWeight: 600,
+          }}
+        >
+          Save Route
+        </button>
       </div>
       <div style={{ display: 'flex', gap: '20px', alignItems: 'center', justifyContent: 'center' }}>
         <MapContainer
@@ -189,6 +244,9 @@ export default function Map() {
             {totalDistance > 0 ? `${(totalDistance / 1000).toFixed(2)} km` : '0 km'}
           </div>
         </div>
+        {saveStatus && (
+          <div style={{ marginTop: 12, color: saveStatus.includes('success') ? 'green' : '#c33' }}>{saveStatus}</div>
+        )}
       </div>
     </div>
     </div>
