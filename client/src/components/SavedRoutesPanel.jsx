@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 
 export default function SavedRoutesPanel({ onClose }) {
   const [savedRoutes, setSavedRoutes] = useState([])
   const [loading, setLoading] = useState(false)
   const [status, setStatus] = useState('')
+  const panelRef = useRef(null)
 
   useEffect(() => {
     const fetchRoutes = async () => {
@@ -25,6 +26,17 @@ export default function SavedRoutesPanel({ onClose }) {
 
     fetchRoutes()
   }, [])
+
+  useEffect(() => {
+    const handleOutside = (e) => {
+      if (!panelRef.current) return
+      if (!panelRef.current.contains(e.target)) {
+        if (onClose) onClose()
+      }
+    }
+    document.addEventListener('mousedown', handleOutside)
+    return () => document.removeEventListener('mousedown', handleOutside)
+  }, [onClose])
 
   const handleSelect = (route) => {
     window.dispatchEvent(new CustomEvent('load-route', { detail: route }))
@@ -49,7 +61,7 @@ export default function SavedRoutesPanel({ onClose }) {
   }
 
   return (
-    <div style={{ position: 'absolute', top: 56, right: 20, zIndex: 2000 }}>
+    <div ref={panelRef} style={{ position: 'absolute', top: 56, right: 20, zIndex: 2000 }}>
       <div style={{ width: 320, background: '#fff', borderRadius: 8, boxShadow: '0 6px 20px rgba(0,0,0,0.12)', padding: 12, color: '#323232' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <strong>My Saved Routes</strong>

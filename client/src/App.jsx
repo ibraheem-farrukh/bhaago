@@ -95,7 +95,7 @@ function App() {
         {user ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <div
-              onClick={() => setShowSaved(true)}
+              onClick={() => setShowSaved(s => !s)}
               style={{
                 padding: '8px 12px',
                 background: '#fff',
