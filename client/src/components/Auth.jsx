@@ -51,9 +51,14 @@ export default function Auth({ onAuthSuccess }) {
         email: data.email
       }))
 
-      // On successful auth, call parent callback to navigate to map
+      // On successful auth, call parent callback with user data
       setFormData({ name: '', email: '', password: '' })
-      if (onAuthSuccess) onAuthSuccess()
+      if (onAuthSuccess) onAuthSuccess({
+        id: data._id,
+        name: data.name,
+        email: data.email,
+        token: data.token
+      })
       
     } catch (err) {
       console.error('Auth error:', err)

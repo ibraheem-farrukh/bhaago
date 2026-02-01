@@ -55,7 +55,7 @@ function App() {
         >
           ← Back to Map
         </button>
-        <Auth onAuthSuccess={() => setPage('map')} />
+        <Auth onAuthSuccess={(userData) => { setUser(userData); setPage('map'); }} />
       </div>
     )
   }
