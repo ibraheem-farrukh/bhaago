@@ -20,6 +20,8 @@ export default function Map() {
   const [routeCoordinates, setRouteCoordinates] = useState([])
   const [totalDistance, setTotalDistance] = useState(0)
   const [saveStatus, setSaveStatus] = useState('')
+  const [showSaveModal, setShowSaveModal] = useState(false)
+  const [saveName, setSaveName] = useState('')
 
   useEffect(() => {
     if (navigator.geolocation) {
@@ -138,46 +140,19 @@ export default function Map() {
           Undo (Ctrl+Z)
         </button>
         <button
-          onClick={async () => {
-            setSaveStatus('')
+          onClick={() => {
             if (routeCoordinates.length < 2) {
               setSaveStatus('Add at least two markers to save a route')
               return
             }
-
             const token = localStorage.getItem('token')
             if (!token) {
               setSaveStatus('You must be logged in to save routes')
               return
             }
-
-            const name = window.prompt('Route name', `Run ${new Date().toLocaleString()}`)
-            if (name === null) return // cancelled
-
-            const payload = {
-              name,
-              coordinates: routeCoordinates, // [lat,lng] pairs
-              distance: totalDistance
-            }
-
-            try {
-              const res = await fetch('http://localhost:3000/api/routes', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify(payload)
-              })
-
-              const data = await res.json()
-              if (!res.ok) throw new Error(data.message || 'Save failed')
-
-              setSaveStatus('Route saved successfully')
-            } catch (err) {
-              console.error('Save route error:', err)
-              setSaveStatus(err.message || 'Error saving route')
-            }
+            setSaveName(`Run ${new Date().toLocaleString()}`)
+            setShowSaveModal(true)
+            setSaveStatus('')
           }}
           style={{
             padding: '10px 20px',
@@ -248,6 +223,61 @@ export default function Map() {
           <div style={{ marginTop: 12, color: saveStatus.includes('success') ? 'green' : '#c33' }}>{saveStatus}</div>
         )}
       </div>
+      {/* Save modal */}
+      {showSaveModal && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.4)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 2000
+        }}>
+          <div style={{
+            width: 360,
+            padding: 20,
+            borderRadius: 12,
+            background: '#fff',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.2)'
+          }}>
+            <h3 style={{ marginTop: 0, color: '#323232' }}>Save Route</h3>
+            <label style={{ display: 'block', marginBottom: 8, color: '#555' }}>Name</label>
+            <input
+              value={saveName}
+              onChange={(e) => setSaveName(e.target.value)}
+              style={{ width: '50%', padding: '10px', borderRadius: 8, border: '1px solid #ddd', marginBottom: 12 }}
+            />
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button onClick={() => { setShowSaveModal(false) }} style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #ddd', background: '#ffffff', color: '#323232' }}>Cancel</button>
+              <button onClick={async () => {
+                setSaveStatus('')
+                const token = localStorage.getItem('token')
+                if (!token) { setSaveStatus('You must be logged in to save routes'); return }
+
+                const payload = { name: saveName, coordinates: routeCoordinates, distance: totalDistance }
+                try {
+                  const res = await fetch('http://localhost:3000/api/routes', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(payload)
+                  })
+                  const data = await res.json()
+                  if (!res.ok) throw new Error(data.message || 'Save failed')
+                  setSaveStatus('Route saved successfully')
+                  setShowSaveModal(false)
+                } catch (err) {
+                  console.error('Save route error:', err)
+                  setSaveStatus(err.message || 'Error saving route')
+                }
+              }} style={{ padding: '8px 12px', borderRadius: 8, border: 'none', background: '#FFB600', color: '#323232', fontWeight: 600 }}>Save</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
     </div>
   )
