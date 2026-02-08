@@ -235,7 +235,10 @@ function MapMarker({
       draggable,
     }).setLngLat([longitude, latitude]);
 
-    const handleClick = (e) => callbacksRef.current.onClick?.(e);
+    const handleClick = (e) => {
+      e.stopPropagation(); // Prevent map click handler from firing
+      callbacksRef.current.onClick?.(e);
+    };
     const handleMouseEnter = (e) => callbacksRef.current.onMouseEnter?.(e);
     const handleMouseLeave = (e) => callbacksRef.current.onMouseLeave?.(e);
 

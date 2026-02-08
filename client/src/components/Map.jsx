@@ -39,6 +39,10 @@ function MapClickHandler({ onAddMarker }) {
     if (!map || !isLoaded) return
 
     const handleClick = (e) => {
+      // Ignore clicks on markers (they have their own click handlers)
+      const target = e.originalEvent?.target
+      if (target?.closest('.maplibregl-marker')) return
+      
       onAddMarker([e.lngLat.lat, e.lngLat.lng])
     }
 
