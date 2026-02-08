@@ -19,11 +19,13 @@ import { cn } from "@/lib/utils";
 // Theme detection
 function getDocumentTheme() {
   if (typeof document === "undefined") return null;
+  // Check for explicit dark class first
   if (document.documentElement.classList.contains("dark")) return "dark";
-  if (document.documentElement.classList.contains("light")) return "light";
+  // Check data-theme attribute
   const attr = document.documentElement.getAttribute("data-theme");
   if (attr === "dark" || attr === "light") return attr;
-  return null;
+  // If no dark class is present, assume light mode (App only toggles .dark)
+  return "light";
 }
 
 function getSystemTheme() {
