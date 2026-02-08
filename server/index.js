@@ -3,6 +3,7 @@ const express = require('express');
 const connectDB = require('./db');
 const authRoutes = require('./routes/auth');
 const routesRoutes = require('./routes/routes');
+const runsRoutes = require('./routes/runs');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -25,6 +26,9 @@ app.use('/api/auth', authRoutes);
 
 // Routes (saved routes)
 app.use('/api/routes', routesRoutes);
+
+// Runs & Photos
+app.use('/api', runsRoutes);
 
 // legacy/save-route (kept for backward compatibility)
 app.post('/api/save-route', (req, res) => {

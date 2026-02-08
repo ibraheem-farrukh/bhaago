@@ -9,6 +9,7 @@ import {
   Route,
   User,
   X,
+  Image,
 } from 'lucide-react'
 
 function App() {
@@ -21,6 +22,7 @@ function App() {
     }
   })
   const [showSaved, setShowSaved] = useState(false)
+  const [photoPins, setPhotoPins] = useState([]) // Photos to show on map
 
   useEffect(() => {
     const onStorage = (e) => {
@@ -113,7 +115,23 @@ function App() {
 
       {/* Map fills remaining space */}
       <main className="flex-1 flex flex-col relative overflow-hidden">
-        <Map />
+        <Map photoPins={photoPins} onClearPhotoPins={() => setPhotoPins([])} />
+
+        {/* Photo pins indicator */}
+        {photoPins.length > 0 && (
+          <div className="absolute top-4 right-4 z-20">
+            <Button
+              variant="secondary"
+              size="sm"
+              className="gap-1.5 shadow-lg"
+              onClick={() => setPhotoPins([])}
+            >
+              <Image className="size-4" />
+              {photoPins.length} photo{photoPins.length !== 1 ? 's' : ''} on map
+              <X className="size-3 ml-1" />
+            </Button>
+          </div>
+        )}
 
         {/* Saved routes sidebar */}
         {showSaved && (
@@ -130,7 +148,13 @@ function App() {
                 <X className="size-4" />
               </Button>
             </div>
-            <SavedRoutesPanel onClose={() => setShowSaved(false)} />
+            <SavedRoutesPanel
+              onClose={() => setShowSaved(false)}
+              onShowPhotoPins={(photos) => {
+                setPhotoPins(photos)
+                setShowSaved(false)
+              }}
+            />
           </div>
         )}
       </main>

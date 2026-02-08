@@ -5,6 +5,7 @@ import {
   MapMarker,
   MarkerContent,
   MarkerTooltip,
+  MarkerPopup,
   MapRoute,
   useMap,
 } from '@/components/ui/map'
@@ -27,6 +28,7 @@ import {
   Ruler,
   Loader2,
   X,
+  Image,
 } from 'lucide-react'
 
 // Inner component that uses useMap hook
@@ -50,9 +52,10 @@ function MapClickHandler({ onAddMarker }) {
   return null
 }
 
-export default function RoutePlanner() {
+export default function RoutePlanner({ photoPins = [], onClearPhotoPins }) {
   const [position, setPosition] = useState(null)
   const [markers, setMarkers] = useState([])
+  const [selectedPhoto, setSelectedPhoto] = useState(null) // For photo pin popup
   const [routeCoordinates, setRouteCoordinates] = useState([])
   const [totalDistance, setTotalDistance] = useState(0)
   const [saveStatus, setSaveStatus] = useState('')
@@ -355,6 +358,53 @@ export default function RoutePlanner() {
                   </div>
                 </div>
               </MarkerTooltip>
+            </MapMarker>
+          ))}
+
+          {/* Photo Pins */}
+          {photoPins.map((photo, index) => (
+            <MapMarker
+              key={photo._id || photo.key || index}
+              longitude={photo.location.coordinates[0]}
+              latitude={photo.location.coordinates[1]}
+              onClick={() => setSelectedPhoto(selectedPhoto?._id === photo._id ? null : photo)}
+            >
+              <MarkerContent>
+                <div className="relative group cursor-pointer">
+                  <div className="size-8 rounded-lg bg-white border-2 border-primary shadow-lg overflow-hidden transition-transform group-hover:scale-110">
+                    <img
+                      src={photo.url}
+                      alt=""
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 size-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-primary" />
+                </div>
+              </MarkerContent>
+              <MarkerPopup>
+                <div className="w-48">
+                  <img
+                    src={photo.url}
+                    alt={photo.caption || 'Photo'}
+                    className="w-full aspect-video object-cover rounded-md"
+                  />
+                  {photo.caption && (
+                    <p className="mt-2 text-xs text-muted-foreground">{photo.caption}</p>
+                  )}
+                  {photo.tags?.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {photo.tags.slice(0, 4).map((tag) => (
+                        <span
+                          key={tag}
+                          className="px-1.5 py-0.5 text-[10px] bg-primary/10 text-primary rounded"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </MarkerPopup>
             </MapMarker>
           ))}
         </MapComponent>
