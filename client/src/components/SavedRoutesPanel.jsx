@@ -1,4 +1,9 @@
 import { useEffect, useState, useRef } from 'react'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Separator } from '@/components/ui/separator'
+import { Badge } from '@/components/ui/badge'
+import { X, Trash2, MapPin, Loader2, Route } from 'lucide-react'
 
 export default function SavedRoutesPanel({ onClose }) {
   const [savedRoutes, setSavedRoutes] = useState([])
@@ -23,7 +28,6 @@ export default function SavedRoutesPanel({ onClose }) {
         setLoading(false)
       }
     }
-
     fetchRoutes()
   }, [])
 
@@ -61,32 +65,70 @@ export default function SavedRoutesPanel({ onClose }) {
   }
 
   return (
-    <div ref={panelRef} style={{ position: 'absolute', top: 56, right: 20, zIndex: 2000 }}>
-      <div style={{ width: 320, background: '#fff', borderRadius: 8, boxShadow: '0 6px 20px rgba(0,0,0,0.12)', padding: 12, color: '#323232' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <strong>My Saved Routes</strong>
-          <button onClick={onClose} style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}>✕</button>
-        </div>
-        {loading ? (
-          <div style={{ marginTop: 12, color: '#666' }}>Loading...</div>
-        ) : status ? (
-          <div style={{ marginTop: 12, color: '#c33' }}>{status}</div>
-        ) : savedRoutes.length === 0 ? (
-          <div style={{ marginTop: 12, color: '#666' }}>No saved routes</div>
-        ) : (
-          <div style={{ marginTop: 8, maxHeight: 300, overflowY: 'auto' }}>
-            {savedRoutes.map(route => (
-              <div key={route._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f0f0f0', color: '#323232' }}>
-                <div style={{ cursor: 'pointer' }} onClick={() => handleSelect(route)}>{route.name || 'Unnamed route'}</div>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <div style={{ color: '#666', fontSize: '0.9rem' }}>{route.distance ? `${(route.distance/1000).toFixed(2)} km` : ''}</div>
-                  <button onClick={() => handleDelete(route)} style={{ padding: '6px 10px', borderRadius: 6, border: 'none', background: '#ff4d4f', color: '#fff', cursor: 'pointer', fontSize: '0.85rem' }}>Delete</button>
-                </div>
-              </div>
-            ))}
+    <div ref={panelRef} className="absolute top-14 right-0 z-50 w-80">
+      <Card className="shadow-xl border-border/50">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Route className="size-4 text-primary" />
+              <CardTitle className="text-base">My Routes</CardTitle>
+            </div>
+            <Button variant="ghost" size="icon-sm" onClick={onClose} className="h-7 w-7">
+              <X className="size-4" />
+            </Button>
           </div>
-        )}
-      </div>
+        </CardHeader>
+
+        <Separator />
+
+        <CardContent className="pt-3 pb-4">
+          {loading ? (
+            <div className="flex items-center justify-center py-8 text-muted-foreground">
+              <Loader2 className="size-5 animate-spin mr-2" />
+              <span className="text-sm">Loading routes...</span>
+            </div>
+          ) : status ? (
+            <div className="py-6 text-center text-sm text-muted-foreground">
+              {status}
+            </div>
+          ) : savedRoutes.length === 0 ? (
+            <div className="py-8 text-center">
+              <MapPin className="size-8 mx-auto text-muted-foreground/40 mb-3" />
+              <p className="text-sm text-muted-foreground">No saved routes yet</p>
+              <p className="text-xs text-muted-foreground/60 mt-1">Create a route on the map to save it</p>
+            </div>
+          ) : (
+            <div className="space-y-1 max-h-72 overflow-y-auto pr-1">
+              {savedRoutes.map(route => (
+                <div
+                  key={route._id}
+                  className="group flex items-center justify-between rounded-lg px-3 py-2.5 hover:bg-accent/50 transition-colors cursor-pointer"
+                  onClick={() => handleSelect(route)}
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate text-foreground">
+                      {route.name || 'Unnamed route'}
+                    </p>
+                    {route.distance > 0 && (
+                      <Badge variant="secondary" className="mt-1 text-[10px] px-1.5 py-0 h-5">
+                        {(route.distance / 1000).toFixed(2)} km
+                      </Badge>
+                    )}
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    className="opacity-0 group-hover:opacity-100 transition-opacity h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                    onClick={(e) => { e.stopPropagation(); handleDelete(route) }}
+                  >
+                    <Trash2 className="size-3.5" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   )
 }

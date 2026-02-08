@@ -2,6 +2,14 @@ import { useState, useEffect } from 'react'
 import Map from './components/Map'
 import Auth from './components/Auth'
 import SavedRoutesPanel from './components/SavedRoutesPanel'
+import { Button } from '@/components/ui/button'
+import {
+  LogIn,
+  LogOut,
+  Route,
+  User,
+  X,
+} from 'lucide-react'
 
 function App() {
   const [page, setPage] = useState('map')
@@ -12,6 +20,7 @@ function App() {
       return null
     }
   })
+  const [showSaved, setShowSaved] = useState(false)
 
   useEffect(() => {
     const onStorage = (e) => {
@@ -23,7 +32,6 @@ function App() {
         }
       }
     }
-
     window.addEventListener('storage', onStorage)
     return () => window.removeEventListener('storage', onStorage)
   }, [])
@@ -32,110 +40,100 @@ function App() {
     localStorage.removeItem('token')
     localStorage.removeItem('user')
     setUser(null)
-    setPage('auth')
   }
-  const [showSaved, setShowSaved] = useState(false)
 
+  // ---------- Auth page ----------
   if (page === 'auth') {
     return (
-      <div style={{ position: 'relative' }}>
-        <button
-          onClick={() => setPage('map')}
-          style={{
-            position: 'absolute',
-            top: '20px',
-            left: '20px',
-            padding: '10px 20px',
-            backgroundColor: '#323232',
-            color: '#fff',
-            border: 'none',
-            borderRadius: '8px',
-            cursor: 'pointer',
-            fontWeight: 600,
-            zIndex: 1000
-          }}
-        >
-          ← Back to Map
-        </button>
-        <Auth onAuthSuccess={(userData) => { setUser(userData); setPage('map'); }} />
-      </div>
+      <Auth
+        onAuthSuccess={(userData) => {
+          setUser(userData)
+          setPage('map')
+        }}
+        onBack={() => setPage('map')}
+      />
     )
   }
 
+  // ---------- Main map page ----------
   return (
-    <div style={{ 
-      minHeight: '100vh', 
-      display: 'flex', 
-      alignItems: 'center', 
-      justifyContent: 'center',
-      backgroundColor: '#F9F6F0',
-      position: 'relative'
-    }}>
-      <button
-        onClick={() => setPage('auth')}
-        style={{
-          position: 'absolute',
-          top: '20px',
-          left: '20px',
-          padding: '10px 20px',
-          backgroundColor: '#FFB600',
-          color: '#323232',
-          border: 'none',
-          borderRadius: '8px',
-          cursor: 'pointer',
-          fontWeight: 600,
-          zIndex: 1000
-        }}
-      >
-        Login / Sign Up
-      </button>
-
-      {/* Account status in top-right */}
-      <div style={{ position: 'absolute', top: 20, right: 20, zIndex: 1000 }}>
-        {user ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div
-              onClick={() => setShowSaved(s => !s)}
-              style={{
-                padding: '8px 12px',
-                background: '#fff',
-                borderRadius: '20px',
-                boxShadow: '0 2px 6px rgba(0,0,0,0.08)',
-                color: '#323232',
-                fontWeight: 600,
-                cursor: 'pointer'
-              }}
-            >
-              {user.name}
-            </div>
-            <button
-              onClick={handleLogout}
-              style={{
-                padding: '8px 12px',
-                background: '#fff',
-                border: 'none',
-                borderRadius: '20px',
-                cursor: 'pointer',
-                color: '#323232',
-                fontWeight: 600
-              }}
-            >
-              Logout
-            </button>
+    <div className="h-screen flex flex-col bg-background text-foreground">
+      {/* Header */}
+      <header className="flex items-center justify-between px-4 py-2.5 border-b border-border/60 bg-card/80 backdrop-blur-sm z-30">
+        {/* Left – brand */}
+        <div className="flex items-center gap-2.5">
+          <div className="size-8 rounded-lg bg-primary flex items-center justify-center">
+            <Route className="size-4 text-primary-foreground" />
           </div>
-        ) : (
-          <div style={{
-            padding: '8px 12px',
-            background: '#fff',
-            borderRadius: '20px',
-            boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
-            color: '#666'
-          }}>Guest</div>
-        )}
-        {showSaved && <SavedRoutesPanel onClose={() => setShowSaved(false)} />}
-      </div>
+          <h1 className="text-lg font-bold tracking-tight">bhaago</h1>
+        </div>
 
-      <Map />
+        {/* Right – account actions */}
+        <div className="flex items-center gap-2">
+          {user ? (
+            <>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowSaved((s) => !s)}
+                className="gap-1.5"
+              >
+                <Route className="size-4" />
+                <span className="hidden sm:inline">Saved Routes</span>
+              </Button>
+
+              <div className="h-5 w-px bg-border/60" />
+
+              <div className="flex items-center gap-1.5 px-2">
+                <div className="size-6 rounded-full bg-primary/10 flex items-center justify-center">
+                  <User className="size-3 text-primary" />
+                </div>
+                <span className="text-sm font-medium hidden sm:inline">
+                  {user.name}
+                </span>
+              </div>
+
+              <Button variant="ghost" size="icon-sm" onClick={handleLogout}>
+                <LogOut className="size-4" />
+              </Button>
+            </>
+          ) : (
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => setPage('auth')}
+              className="gap-1.5"
+            >
+              <LogIn className="size-4" />
+              Sign In
+            </Button>
+          )}
+        </div>
+      </header>
+
+      {/* Map fills remaining space */}
+      <main className="flex-1 flex flex-col relative overflow-hidden">
+        <Map />
+
+        {/* Saved routes sidebar */}
+        {showSaved && (
+          <div className="absolute inset-y-0 right-0 z-30 w-80 max-w-full shadow-xl border-l border-border/50 bg-card/95 backdrop-blur-sm">
+            <div className="flex items-center justify-between px-4 pt-4 pb-2">
+              <h2 className="text-sm font-semibold tracking-wide uppercase text-muted-foreground">
+                Saved Routes
+              </h2>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => setShowSaved(false)}
+              >
+                <X className="size-4" />
+              </Button>
+            </div>
+            <SavedRoutesPanel onClose={() => setShowSaved(false)} />
+          </div>
+        )}
+      </main>
     </div>
   )
 }

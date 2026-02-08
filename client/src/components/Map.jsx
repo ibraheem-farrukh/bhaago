@@ -1,19 +1,68 @@
-import { useState, useEffect } from 'react'
-import { MapContainer, TileLayer, Marker, Popup, useMapEvents, Polyline } from 'react-leaflet'
-import 'leaflet/dist/leaflet.css'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import {
+  Map as MapComponent,
+  MapControls,
+  MapMarker,
+  MarkerContent,
+  MarkerTooltip,
+  MapRoute,
+  useMap,
+} from '@/components/ui/map'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Card, CardContent } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog'
+import {
+  MousePointerClick,
+  Undo2,
+  Save,
+  MapPin,
+  Ruler,
+  Loader2,
+  X,
+} from 'lucide-react'
 
+// Inner component that uses useMap hook
 function MapClickHandler({ isPlacingMarkers, onAddMarker }) {
-  useMapEvents({
-    click(e) {
+  const { map, isLoaded } = useMap()
+
+  useEffect(() => {
+    if (!map || !isLoaded) return
+
+    const handleClick = (e) => {
       if (isPlacingMarkers) {
-        onAddMarker([e.latlng.lat, e.latlng.lng])
+        onAddMarker([e.lngLat.lat, e.lngLat.lng])
       }
-    },
-  })
+    }
+
+    map.on('click', handleClick)
+
+    // Update cursor
+    if (isPlacingMarkers) {
+      map.getCanvas().style.cursor = 'crosshair'
+    } else {
+      map.getCanvas().style.cursor = ''
+    }
+
+    return () => {
+      map.off('click', handleClick)
+      map.getCanvas().style.cursor = ''
+    }
+  }, [map, isLoaded, isPlacingMarkers, onAddMarker])
+
   return null
 }
 
-export default function Map() {
+export default function RoutePlanner() {
   const [position, setPosition] = useState(null)
   const [isPlacingMarkers, setIsPlacingMarkers] = useState(false)
   const [markers, setMarkers] = useState([])
@@ -22,26 +71,21 @@ export default function Map() {
   const [saveStatus, setSaveStatus] = useState('')
   const [showSaveModal, setShowSaveModal] = useState(false)
   const [saveName, setSaveName] = useState('')
-  
+  const mapRef = useRef(null)
 
+  // Get user's location
   useEffect(() => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          setPosition([pos.coords.latitude, pos.coords.longitude])
-        },
-        (error) => {
-          console.error('Error getting location:', error)
-          // Fallback to London
-          setPosition([51.505, -0.09])
-        }
+        (pos) => setPosition([pos.coords.longitude, pos.coords.latitude]),
+        () => setPosition([-0.09, 51.505]), // Fallback to London
       )
     } else {
-      // Fallback if geolocation not supported
-      setPosition([51.505, -0.09])
+      setPosition([-0.09, 51.505])
     }
   }, [])
 
+  // Fetch route from OSRM
   useEffect(() => {
     const fetchRoute = async () => {
       if (markers.length < 2) {
@@ -50,49 +94,48 @@ export default function Map() {
         return
       }
 
-      const coordinates = markers.map(m => `${m.position[1]},${m.position[0]}`).join(';')
-      
+      const coordinates = markers.map(m => `${m.lngLat[0]},${m.lngLat[1]}`).join(';')
+
       try {
         const response = await fetch(
           `https://router.project-osrm.org/route/v1/foot/${coordinates}?overview=full&geometries=geojson`
         )
         const data = await response.json()
-        
+
         if (data.routes && data.routes[0]) {
-          const coords = data.routes[0].geometry.coordinates.map(coord => [coord[1], coord[0]])
+          const coords = data.routes[0].geometry.coordinates
           setRouteCoordinates(coords)
           setTotalDistance(data.routes[0].distance)
         }
       } catch (error) {
         console.error('Error fetching route:', error)
-        setRouteCoordinates(markers.map(m => m.position))
+        setRouteCoordinates(markers.map(m => m.lngLat))
         setTotalDistance(0)
       }
     }
-
     fetchRoute()
   }, [markers])
 
-  const handleAddMarker = (position) => {
-    setMarkers([...markers, { id: Date.now(), position }])
-  }
+  const handleAddMarker = useCallback((latLngArr) => {
+    // latLngArr = [lat, lng] from map click, convert to [lng, lat] for maplibre
+    setMarkers(prev => [...prev, { id: Date.now(), lngLat: [latLngArr[1], latLngArr[0]] }])
+  }, [])
 
-  const handleRemoveMarker = (markerId) => {
-    setMarkers(markers.filter(m => m.id !== markerId))
-  }
+  const handleRemoveMarker = useCallback((markerId) => {
+    setMarkers(prev => prev.filter(m => m.id !== markerId))
+  }, [])
 
-  const handleUndo = () => {
-    if (markers.length > 0) {
-      setMarkers(markers.slice(0, -1))
-    }
-  }
+  const handleUndo = useCallback(() => {
+    setMarkers(prev => prev.length > 0 ? prev.slice(0, -1) : prev)
+  }, [])
 
-  const handleUpdateMarkerPosition = (markerId, newPosition) => {
-    setMarkers(markers.map(m => 
-      m.id === markerId ? { ...m, position: newPosition } : m
+  const handleDragEnd = useCallback((markerId, lngLat) => {
+    setMarkers(prev => prev.map(m =>
+      m.id === markerId ? { ...m, lngLat: [lngLat.lng, lngLat.lat] } : m
     ))
-  }
+  }, [])
 
+  // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.ctrlKey && e.key === 'z') {
@@ -101,62 +144,124 @@ export default function Map() {
       }
     }
     window.addEventListener('keydown', handleKeyDown)
-    // Listen for external route load events (from SavedRoutesPanel)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [handleUndo])
+
+  // Load external route events
+  useEffect(() => {
     const onLoadRoute = (e) => {
       const route = e.detail
       if (route && route.geometry && route.geometry.coordinates) {
-        const coords = route.geometry.coordinates.map(c => [c[1], c[0]])
+        const coords = route.geometry.coordinates
         setRouteCoordinates(coords)
         if (route.waypoints && Array.isArray(route.waypoints) && route.waypoints.length > 0) {
-          setMarkers(route.waypoints.map((p, i) => ({ id: Date.now() + i, position: p })))
+          setMarkers(route.waypoints.map((p, i) => ({
+            id: Date.now() + i,
+            lngLat: [p[1], p[0]] // convert [lat,lng] to [lng,lat]
+          })))
         } else {
-          setMarkers(coords.filter((_, i) => i % 10 === 0).map((p, i) => ({ id: Date.now() + i, position: p })))
+          setMarkers(coords.filter((_, i) => i % 10 === 0).map((p, i) => ({
+            id: Date.now() + i,
+            lngLat: p
+          })))
         }
         setSaveStatus('')
+
+        // Fly to the route
+        if (mapRef.current && coords.length > 0) {
+          const bounds = coords.reduce(
+            (b, coord) => {
+              return {
+                minLng: Math.min(b.minLng, coord[0]),
+                maxLng: Math.max(b.maxLng, coord[0]),
+                minLat: Math.min(b.minLat, coord[1]),
+                maxLat: Math.max(b.maxLat, coord[1]),
+              }
+            },
+            { minLng: Infinity, maxLng: -Infinity, minLat: Infinity, maxLat: -Infinity }
+          )
+          mapRef.current.fitBounds(
+            [[bounds.minLng, bounds.minLat], [bounds.maxLng, bounds.maxLat]],
+            { padding: 60, duration: 1000 }
+          )
+        }
       }
     }
     window.addEventListener('load-route', onLoadRoute)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [markers])
+    return () => window.removeEventListener('load-route', onLoadRoute)
+  }, [])
+
+  const handleSave = async () => {
+    setSaveStatus('')
+    const token = localStorage.getItem('token')
+    if (!token) { setSaveStatus('You must be logged in to save routes'); return }
+
+    const payload = {
+      name: saveName,
+      coordinates: routeCoordinates,
+      distance: totalDistance,
+      waypoints: markers.map(m => [m.lngLat[1], m.lngLat[0]]) // convert back to [lat, lng] for API
+    }
+
+    try {
+      const res = await fetch('http://localhost:3000/api/routes', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        const errMsg = data.message || 'Save failed'
+        throw new Error(data.error ? `${errMsg}: ${data.error}` : errMsg)
+      }
+      setSaveStatus('Route saved successfully!')
+      setShowSaveModal(false)
+    } catch (err) {
+      console.error('Save route error:', err)
+      setSaveStatus(err.message || 'Error saving route')
+    }
+  }
 
   if (!position) {
-    return <div style={{ color: '#323232' }}>Loading map...</div>
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <div className="flex items-center gap-3 text-muted-foreground">
+          <Loader2 className="size-5 animate-spin" />
+          <span className="text-sm font-medium">Locating you on the map...</span>
+        </div>
+      </div>
+    )
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', alignItems: 'center' }}>
-      <div style={{ display: 'flex', gap: '12px' }}>
-        <button
+    <div className="flex-1 flex flex-col relative min-h-0">
+      {/* Toolbar */}
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2">
+        <Button
           onClick={() => setIsPlacingMarkers(!isPlacingMarkers)}
-          style={{
-            padding: '10px 20px',
-            backgroundColor: isPlacingMarkers ? '#FFB600' : '#323232',
-            color: isPlacingMarkers ? '#323232' : '#fff',
-            border: 'none',
-            borderRadius: '8px',
-            cursor: 'pointer',
-            fontWeight: 600,
-          }}
+          variant={isPlacingMarkers ? 'default' : 'secondary'}
+          size="sm"
+          className="shadow-lg"
         >
-          {isPlacingMarkers ? 'Stop Placing Markers' : 'Start Placing Markers'}
-        </button>
-        
-        <button
+          <MousePointerClick className="size-4" />
+          {isPlacingMarkers ? 'Stop Placing' : 'Place Markers'}
+        </Button>
+
+        <Button
           onClick={handleUndo}
           disabled={markers.length === 0}
-          style={{
-            padding: '10px 20px',
-            backgroundColor: markers.length === 0 ? '#ccc' : '#323232',
-            color: '#fff',
-            border: 'none',
-            borderRadius: '8px',
-            cursor: markers.length === 0 ? 'not-allowed' : 'pointer',
-            fontWeight: 600,
-          }}
+          variant="secondary"
+          size="sm"
+          className="shadow-lg"
         >
-          Undo (Ctrl+Z)
-        </button>
-        <button
+          <Undo2 className="size-4" />
+          Undo
+        </Button>
+
+        <Button
           onClick={() => {
             if (routeCoordinates.length < 2) {
               setSaveStatus('Add at least two markers to save a route')
@@ -171,135 +276,163 @@ export default function Map() {
             setShowSaveModal(true)
             setSaveStatus('')
           }}
-          style={{
-            padding: '10px 20px',
-            backgroundColor: '#FFB600',
-            color: '#323232',
-            border: 'none',
-            borderRadius: '8px',
-            cursor: 'pointer',
-            fontWeight: 600,
-          }}
+          variant="default"
+          size="sm"
+          className="shadow-lg"
         >
+          <Save className="size-4" />
           Save Route
-        </button>
+        </Button>
       </div>
-      <div style={{ display: 'flex', gap: '20px', alignItems: 'center', justifyContent: 'center' }}>
-        <MapContainer
-          center={position}
-          zoom={17}
-          style={{ width: '800px', height: '600px', borderRadius: '8px', cursor: isPlacingMarkers ? 'crosshair' : 'grab' }}
-        >
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
-        {markers.map((marker) => (
-          <Marker 
-            key={marker.id} 
-            position={marker.position}
-            draggable={true}
-            eventHandlers={{
-              contextmenu: (e) => {
-                e.originalEvent.preventDefault()
-                handleRemoveMarker(marker.id)
-              },
-              dragend: (e) => {
-                const newPos = e.target.getLatLng()
-                handleUpdateMarkerPosition(marker.id, [newPos.lat, newPos.lng])
-              },
-            }}
-          >
-            <Popup>Custom marker (Right-click to remove, drag to move)</Popup>
-          </Marker>
-        ))}
-        {routeCoordinates.length > 0 && (
-          <Polyline 
-            positions={routeCoordinates} 
-            color="#FFB600" 
-            weight={3}
-          />
-        )}
-        <MapClickHandler isPlacingMarkers={isPlacingMarkers} onAddMarker={handleAddMarker} />
-      </MapContainer>
-      <div style={{
-        width: '200px',
-        padding: '20px',
-        backgroundColor: '#fff',
-        borderRadius: '8px',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
-      }}>
-        <h3 style={{ margin: '0 0 12px 0', color: '#323232', fontSize: '1.2rem' }}>Route Info</h3>
-        <div style={{ color: '#323232' }}>
-          <strong>Total Distance:</strong>
-          <div style={{ fontSize: '1.5rem', color: '#FFB600', marginTop: '8px' }}>
-            {totalDistance > 0 ? `${(totalDistance / 1000).toFixed(2)} km` : '0 km'}
-          </div>
-        </div>
-        {saveStatus && (
-          <div style={{ marginTop: 12, color: saveStatus.includes('success') ? 'green' : '#c33' }}>{saveStatus}</div>
-        )}
-      </div>
-      
-      {/* Save modal */}
-      {showSaveModal && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(0,0,0,0.4)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 2000
-        }}>
-          <div style={{
-            width: 360,
-            padding: 20,
-            borderRadius: 12,
-            background: '#fff',
-            boxShadow: '0 8px 24px rgba(0,0,0,0.2)'
-          }}>
-            <h3 style={{ marginTop: 0, color: '#323232' }}>Save Route</h3>
-            <label style={{ display: 'block', marginBottom: 8, color: '#555' }}>Name</label>
-            <input
-              value={saveName}
-              onChange={(e) => setSaveName(e.target.value)}
-              style={{ width: '50%', padding: '10px', borderRadius: 8, border: '1px solid #ddd', marginBottom: 12 }}
-            />
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button onClick={() => { setShowSaveModal(false) }} style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #ddd', background: '#ffffff', color: '#323232' }}>Cancel</button>
-              <button onClick={async () => {
-                setSaveStatus('')
-                const token = localStorage.getItem('token')
-                if (!token) { setSaveStatus('You must be logged in to save routes'); return }
 
-                const payload = { name: saveName, coordinates: routeCoordinates, distance: totalDistance, waypoints: markers.map(m => m.position) }
-                try {
-                  const res = await fetch('http://localhost:3000/api/routes', {
-                    method: 'POST',
-                    headers: {
-                      'Content-Type': 'application/json',
-                      'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify(payload)
-                  })
-                  const data = await res.json()
-                    if (!res.ok) {
-                      const errMsg = data.message || 'Save failed'
-                      throw new Error(data.error ? `${errMsg}: ${data.error}` : errMsg)
-                    }
-                    setSaveStatus('Route saved successfully')
-                    setShowSaveModal(false)
-                } catch (err) {
-                  console.error('Save route error:', err)
-                  setSaveStatus(err.message || 'Error saving route')
-                }
-              }} style={{ padding: '8px 12px', borderRadius: 8, border: 'none', background: '#FFB600', color: '#323232', fontWeight: 600 }}>Save</button>
+      {/* Route Info Panel */}
+      <div className="absolute bottom-6 left-4 z-20">
+        <Card className="shadow-xl border-border/50 w-52">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Ruler className="size-4 text-primary" />
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Route Info
+              </span>
             </div>
-          </div>
+            <div className="text-3xl font-bold text-foreground tracking-tight">
+              {totalDistance > 0 ? `${(totalDistance / 1000).toFixed(2)}` : '0.00'}
+              <span className="text-sm font-medium text-muted-foreground ml-1">km</span>
+            </div>
+            {markers.length > 0 && (
+              <div className="mt-2 flex items-center gap-1.5">
+                <MapPin className="size-3 text-primary" />
+                <span className="text-xs text-muted-foreground">
+                  {markers.length} waypoint{markers.length !== 1 ? 's' : ''}
+                </span>
+              </div>
+            )}
+            {saveStatus && (
+              <div className={`mt-3 text-xs font-medium ${saveStatus.includes('success') ? 'text-green-600' : 'text-destructive'}`}>
+                {saveStatus}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Hint */}
+      {isPlacingMarkers && markers.length === 0 && (
+        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-20">
+          <Badge variant="secondary" className="shadow-md px-3 py-1.5 text-xs">
+            Click on the map to place waypoints
+          </Badge>
         </div>
       )}
-    </div>
+
+      {/* Map */}
+      <div className="flex-1 min-h-0 rounded-xl overflow-hidden border border-border/50 shadow-sm m-1">
+        <MapComponent
+          ref={mapRef}
+          center={position}
+          zoom={15}
+          className="w-full h-full"
+        >
+          <MapControls
+            position="bottom-right"
+            showZoom
+            showCompass
+            showLocate
+          />
+
+          <MapClickHandler
+            isPlacingMarkers={isPlacingMarkers}
+            onAddMarker={handleAddMarker}
+          />
+
+          {/* Route line */}
+          {routeCoordinates.length >= 2 && (
+            <MapRoute
+              coordinates={routeCoordinates}
+              color="#c06a20"
+              width={4}
+              opacity={0.85}
+            />
+          )}
+
+          {/* Markers */}
+          {markers.map((marker, index) => (
+            <MapMarker
+              key={marker.id}
+              longitude={marker.lngLat[0]}
+              latitude={marker.lngLat[1]}
+              draggable
+              onDragEnd={(lngLat) => handleDragEnd(marker.id, lngLat)}
+              onClick={() => handleRemoveMarker(marker.id)}
+            >
+              <MarkerContent>
+                <div className="relative group">
+                  <div className="size-6 rounded-full bg-primary border-2 border-white shadow-lg flex items-center justify-center text-primary-foreground text-[10px] font-bold transition-transform group-hover:scale-110">
+                    {index + 1}
+                  </div>
+                  {/* Remove button on hover */}
+                  <div className="absolute -top-1 -right-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="size-3.5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center">
+                      <X className="size-2" />
+                    </div>
+                  </div>
+                </div>
+              </MarkerContent>
+              <MarkerTooltip>
+                <div className="text-center">
+                  <div className="font-medium">Waypoint {index + 1}</div>
+                  <div className="text-[10px] text-muted-foreground">
+                    Click to remove · Drag to move
+                  </div>
+                </div>
+              </MarkerTooltip>
+            </MapMarker>
+          ))}
+        </MapComponent>
+      </div>
+
+      {/* Save Dialog */}
+      <Dialog open={showSaveModal} onOpenChange={setShowSaveModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Save Route</DialogTitle>
+            <DialogDescription>
+              Give your route a name to save it for later.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="routeName">Route name</Label>
+              <Input
+                id="routeName"
+                value={saveName}
+                onChange={(e) => setSaveName(e.target.value)}
+                placeholder="My morning run"
+                className="h-10"
+              />
+            </div>
+            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+              <div className="flex items-center gap-1.5">
+                <Ruler className="size-3.5" />
+                {(totalDistance / 1000).toFixed(2)} km
+              </div>
+              <div className="flex items-center gap-1.5">
+                <MapPin className="size-3.5" />
+                {markers.length} waypoints
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowSaveModal(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSave}>
+              <Save className="size-4" />
+              Save Route
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
