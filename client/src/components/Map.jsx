@@ -59,6 +59,7 @@ function MapClickHandler({ onAddMarker }) {
 export default function RoutePlanner({ photoPins = [], onClearPhotoPins }) {
   const [position, setPosition] = useState(null)
   const [markers, setMarkers] = useState([])
+  const [history, setHistory] = useState([]) // Undo stack - stores previous marker states
   const [selectedPhoto, setSelectedPhoto] = useState(null) // For photo pin popup
   const [routeCoordinates, setRouteCoordinates] = useState([])
   const [totalDistance, setTotalDistance] = useState(0)
@@ -66,6 +67,12 @@ export default function RoutePlanner({ photoPins = [], onClearPhotoPins }) {
   const [showSaveModal, setShowSaveModal] = useState(false)
   const [saveName, setSaveName] = useState('')
   const mapRef = useRef(null)
+
+  // Helper to update markers with history tracking
+  const updateMarkers = useCallback((newMarkers) => {
+    setHistory(prev => [...prev.slice(-19), markers]) // Keep last 20 states
+    setMarkers(newMarkers)
+  }, [markers])
 
   // Get user's location
   useEffect(() => {
@@ -112,22 +119,26 @@ export default function RoutePlanner({ photoPins = [], onClearPhotoPins }) {
 
   const handleAddMarker = useCallback((latLngArr) => {
     // latLngArr = [lat, lng] from map click, convert to [lng, lat] for maplibre
-    setMarkers(prev => [...prev, { id: Date.now(), lngLat: [latLngArr[1], latLngArr[0]] }])
-  }, [])
+    const newMarker = { id: Date.now(), lngLat: [latLngArr[1], latLngArr[0]] }
+    updateMarkers([...markers, newMarker])
+  }, [markers, updateMarkers])
 
   const handleRemoveMarker = useCallback((markerId) => {
-    setMarkers(prev => prev.filter(m => m.id !== markerId))
-  }, [])
+    updateMarkers(markers.filter(m => m.id !== markerId))
+  }, [markers, updateMarkers])
 
   const handleUndo = useCallback(() => {
-    setMarkers(prev => prev.length > 0 ? prev.slice(0, -1) : prev)
-  }, [])
+    if (history.length === 0) return
+    const previousState = history[history.length - 1]
+    setHistory(prev => prev.slice(0, -1))
+    setMarkers(previousState)
+  }, [history])
 
   const handleDragEnd = useCallback((markerId, lngLat) => {
-    setMarkers(prev => prev.map(m =>
+    updateMarkers(markers.map(m =>
       m.id === markerId ? { ...m, lngLat: [lngLat.lng, lngLat.lat] } : m
     ))
-  }, [])
+  }, [markers, updateMarkers])
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -236,7 +247,7 @@ export default function RoutePlanner({ photoPins = [], onClearPhotoPins }) {
       <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2">
         <Button
           onClick={handleUndo}
-          disabled={markers.length === 0}
+          disabled={history.length === 0}
           variant="secondary"
           size="sm"
           className="shadow-lg"
