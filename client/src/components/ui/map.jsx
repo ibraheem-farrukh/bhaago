@@ -613,17 +613,15 @@ function MapRoute({
   }, [isLoaded, map]);
 
   useEffect(() => {
-    if (!isLoaded || !map) return;
+    if (!isLoaded || !map || coordinates.length < 2) return;
     const source = map.getSource(sourceId);
-    if (!source) return;
-    source.setData({
-      type: "Feature",
-      properties: {},
-      geometry: {
-        type: "LineString",
-        coordinates: coordinates.length >= 2 ? coordinates : [],
-      },
-    });
+    if (source) {
+      source.setData({
+        type: "Feature",
+        properties: {},
+        geometry: { type: "LineString", coordinates },
+      });
+    }
   }, [isLoaded, map, coordinates, sourceId]);
 
   useEffect(() => {
