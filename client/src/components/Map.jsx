@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/dialog'
 import {
   Undo2,
+  Redo2,
   Save,
   MapPin,
   Ruler,
@@ -60,6 +61,7 @@ export default function RoutePlanner({ photoPins = [], onClearPhotoPins }) {
   const [position, setPosition] = useState(null)
   const [markers, setMarkers] = useState([])
   const [history, setHistory] = useState([]) // Undo stack - stores previous marker states
+  const [future, setFuture] = useState([]) // Redo stack - stores undone states
   const [selectedPhoto, setSelectedPhoto] = useState(null) // For photo pin popup
   const [routeCoordinates, setRouteCoordinates] = useState([])
   const [totalDistance, setTotalDistance] = useState(0)
@@ -71,6 +73,7 @@ export default function RoutePlanner({ photoPins = [], onClearPhotoPins }) {
   // Helper to update markers with history tracking
   const updateMarkers = useCallback((newMarkers) => {
     setHistory(prev => [...prev.slice(-19), markers]) // Keep last 20 states
+    setFuture([]) // Clear redo stack on new action
     setMarkers(newMarkers)
   }, [markers])
 
@@ -131,8 +134,17 @@ export default function RoutePlanner({ photoPins = [], onClearPhotoPins }) {
     if (history.length === 0) return
     const previousState = history[history.length - 1]
     setHistory(prev => prev.slice(0, -1))
+    setFuture(prev => [...prev, markers]) // Save current for redo
     setMarkers(previousState)
-  }, [history])
+  }, [history, markers])
+
+  const handleRedo = useCallback(() => {
+    if (future.length === 0) return
+    const nextState = future[future.length - 1]
+    setFuture(prev => prev.slice(0, -1))
+    setHistory(prev => [...prev, markers]) // Save current for undo
+    setMarkers(nextState)
+  }, [future, markers])
 
   const handleDragEnd = useCallback((markerId, lngLat) => {
     updateMarkers(markers.map(m =>
@@ -147,10 +159,14 @@ export default function RoutePlanner({ photoPins = [], onClearPhotoPins }) {
         e.preventDefault()
         handleUndo()
       }
+      if (e.ctrlKey && e.key === 'y') {
+        e.preventDefault()
+        handleRedo()
+      }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [handleUndo])
+  }, [handleUndo, handleRedo])
 
   // Load external route events
   useEffect(() => {
@@ -254,6 +270,17 @@ export default function RoutePlanner({ photoPins = [], onClearPhotoPins }) {
         >
           <Undo2 className="size-4" />
           Undo
+        </Button>
+
+        <Button
+          onClick={handleRedo}
+          disabled={future.length === 0}
+          variant="secondary"
+          size="sm"
+          className="shadow-lg"
+        >
+          <Redo2 className="size-4" />
+          Redo
         </Button>
 
         <Button
