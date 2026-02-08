@@ -12,7 +12,6 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import {
   Dialog,
   DialogContent,
@@ -22,7 +21,6 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog'
 import {
-  MousePointerClick,
   Undo2,
   Save,
   MapPin,
@@ -32,39 +30,28 @@ import {
 } from 'lucide-react'
 
 // Inner component that uses useMap hook
-function MapClickHandler({ isPlacingMarkers, onAddMarker }) {
+function MapClickHandler({ onAddMarker }) {
   const { map, isLoaded } = useMap()
 
   useEffect(() => {
     if (!map || !isLoaded) return
 
     const handleClick = (e) => {
-      if (isPlacingMarkers) {
-        onAddMarker([e.lngLat.lat, e.lngLat.lng])
-      }
+      onAddMarker([e.lngLat.lat, e.lngLat.lng])
     }
 
     map.on('click', handleClick)
 
-    // Update cursor
-    if (isPlacingMarkers) {
-      map.getCanvas().style.cursor = 'crosshair'
-    } else {
-      map.getCanvas().style.cursor = ''
-    }
-
     return () => {
       map.off('click', handleClick)
-      map.getCanvas().style.cursor = ''
     }
-  }, [map, isLoaded, isPlacingMarkers, onAddMarker])
+  }, [map, isLoaded, onAddMarker])
 
   return null
 }
 
 export default function RoutePlanner() {
   const [position, setPosition] = useState(null)
-  const [isPlacingMarkers, setIsPlacingMarkers] = useState(false)
   const [markers, setMarkers] = useState([])
   const [routeCoordinates, setRouteCoordinates] = useState([])
   const [totalDistance, setTotalDistance] = useState(0)
@@ -241,16 +228,6 @@ export default function RoutePlanner() {
       {/* Toolbar */}
       <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2">
         <Button
-          onClick={() => setIsPlacingMarkers(!isPlacingMarkers)}
-          variant={isPlacingMarkers ? 'default' : 'secondary'}
-          size="sm"
-          className="shadow-lg"
-        >
-          <MousePointerClick className="size-4" />
-          {isPlacingMarkers ? 'Stop Placing' : 'Place Markers'}
-        </Button>
-
-        <Button
           onClick={handleUndo}
           disabled={markers.length === 0}
           variant="secondary"
@@ -316,14 +293,7 @@ export default function RoutePlanner() {
         </Card>
       </div>
 
-      {/* Hint */}
-      {isPlacingMarkers && markers.length === 0 && (
-        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-20">
-          <Badge variant="secondary" className="shadow-md px-3 py-1.5 text-xs">
-            Click on the map to place waypoints
-          </Badge>
-        </div>
-      )}
+
 
       {/* Map */}
       <div className="flex-1 min-h-0 rounded-xl overflow-hidden border border-border/50 shadow-sm m-1">
@@ -341,7 +311,6 @@ export default function RoutePlanner() {
           />
 
           <MapClickHandler
-            isPlacingMarkers={isPlacingMarkers}
             onAddMarker={handleAddMarker}
           />
 
