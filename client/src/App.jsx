@@ -10,6 +10,8 @@ import {
   User,
   X,
   Image,
+  Sun,
+  Moon,
 } from 'lucide-react'
 
 function App() {
@@ -23,6 +25,22 @@ function App() {
   })
   const [showSaved, setShowSaved] = useState(false)
   const [photoPins, setPhotoPins] = useState([]) // Photos to show on map
+  const [darkMode, setDarkMode] = useState(() => {
+    // Check localStorage or system preference
+    const stored = localStorage.getItem('theme')
+    if (stored) return stored === 'dark'
+    return window.matchMedia('(prefers-color-scheme: dark)').matches
+  })
+
+  // Apply dark mode class to document
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add('dark')
+    } else {
+      document.documentElement.classList.remove('dark')
+    }
+    localStorage.setItem('theme', darkMode ? 'dark' : 'light')
+  }, [darkMode])
 
   useEffect(() => {
     const onStorage = (e) => {
@@ -110,6 +128,18 @@ function App() {
               Sign In
             </Button>
           )}
+
+          <div className="h-5 w-px bg-border/60" />
+
+          {/* Dark mode toggle */}
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => setDarkMode((d) => !d)}
+            aria-label="Toggle dark mode"
+          >
+            {darkMode ? <Sun className="size-4" /> : <Moon className="size-4" />}
+          </Button>
         </div>
       </header>
 
